@@ -369,6 +369,7 @@
 
 - (void)_closePopoverAndResetVariables
 {
+	[[self retain] autorelease]; // make sure we don't get released during the following, e.g. by the delegate method
 	NSWindow *positionWindow = [self.positionView window];
 	[_popoverWindow orderOut:nil]; // Close the window 
 	[self _callDelegateMethod:@selector(popoverDidClose:)]; // Call the delegate to inform that the popover has closed
