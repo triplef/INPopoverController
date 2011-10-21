@@ -18,8 +18,10 @@
 	NSColor *_topHighlightColor;
 	CGFloat _borderWidth;
 	INPopoverArrowDirection _arrowDirection;
+	CGFloat _arrowPosition;
 }
 @property (nonatomic, retain) NSColor *color, *borderColor, *topHighlightColor;
 @property (nonatomic, assign) CGFloat borderWidth;
 @property (nonatomic, assign) INPopoverArrowDirection arrowDirection;
+@property (nonatomic, assign) CGFloat arrowPosition;
 @end

@@ -108,8 +108,9 @@
  Returns the frame for a popop window with a given size depending on the arrow direction.
  @param contentSize the popover window content size
  @param direction the arrow direction
+ @param position the arrow position (0.0 - 1.0, default 0.5)
  */
-- (NSRect)popoverFrameWithSize:(NSSize)contentSize andArrowDirection:(INPopoverArrowDirection)direction;
+- (NSRect)popoverFrameWithSize:(NSSize)contentSize andArrowDirection:(INPopoverArrowDirection)direction andArrowPosition:(CGFloat)position;
 
 @end
 

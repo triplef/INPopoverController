@@ -18,5 +18,7 @@ typedef NSInteger INPopoverArrowDirection;
 #define INPOPOVER_ARROW_HEIGHT 12.0
 /** The arrow width **/
 #define INPOPOVER_ARROW_WIDTH 23.0
+/** The arrow default position **/
+#define INPOPOVER_ARROW_DEFAULT_POSITION 0.5
 /** Corner radius to use when drawing popover corners **/
 #define INPOPOVER_CORNER_RADIUS 4.0

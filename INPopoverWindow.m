@@ -98,8 +98,8 @@
 		return;
 	
 	NSRect endFrame = [self frame];
-	NSRect startFrame = [popoverController popoverFrameWithSize:START_SIZE andArrowDirection:self.frameView.arrowDirection];
-	NSRect overshootFrame = [popoverController popoverFrameWithSize:NSMakeSize(endFrame.size.width*OVERSHOOT_FACTOR, endFrame.size.height*OVERSHOOT_FACTOR) andArrowDirection:self.frameView.arrowDirection];
+	NSRect startFrame = [popoverController popoverFrameWithSize:START_SIZE andArrowDirection:self.frameView.arrowDirection andArrowPosition:self.frameView.arrowPosition];
+	NSRect overshootFrame = [popoverController popoverFrameWithSize:NSMakeSize(endFrame.size.width*OVERSHOOT_FACTOR, endFrame.size.height*OVERSHOOT_FACTOR) andArrowDirection:self.frameView.arrowDirection andArrowPosition:self.frameView.arrowPosition];
 	
 	_zoomWindow = [[self _zoomWindowWithRect:startFrame] retain];
 	

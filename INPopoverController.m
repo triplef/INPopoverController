@@ -19,7 +19,8 @@
 - (void)_positionViewFrameChanged:(NSNotification*)notification;
 - (void)_setPositionView:(NSView*)newPositionView;
 - (void)_setArrowDirection:(INPopoverArrowDirection)direction;
-- (INPopoverArrowDirection)_arrowDirectionWithPreferredArrowDirection:(INPopoverArrowDirection)direction;
+- (void)_setArrowPosition:(CGFloat)position;
+- (INPopoverArrowDirection)_arrowDirectionWithPreferredArrowDirection:(INPopoverArrowDirection)direction arrowPosition:(CGFloat *)outArrowPosition;
 @property (readonly) NSView *contentView;
 @end
 
@@ -66,9 +67,11 @@
 	_viewRect = rect;
 	_screenRect = [positionView convertRect:rect toView:nil]; // Convert the rect to window coordinates
 	_screenRect.origin = [mainWindow convertBaseToScreen:_screenRect.origin]; // Convert window coordinates to screen coordinates
-	INPopoverArrowDirection calculatedDirection = [self _arrowDirectionWithPreferredArrowDirection:direction]; // Calculate the best arrow direction
+	CGFloat arrowPosition;
+	INPopoverArrowDirection calculatedDirection = [self _arrowDirectionWithPreferredArrowDirection:direction arrowPosition:&arrowPosition]; // Calculate the best arrow direction
 	[self _setArrowDirection:calculatedDirection]; // Change the arrow direction of the popover
-	NSRect windowFrame = [self popoverFrameWithSize:self.contentSize andArrowDirection:calculatedDirection]; // Calculate the window frame based on the arrow direction
+	[self _setArrowPosition:arrowPosition];
+	NSRect windowFrame = [self popoverFrameWithSize:self.contentSize andArrowDirection:calculatedDirection andArrowPosition:arrowPosition]; // Calculate the window frame based on the arrow direction
 	[_popoverWindow setFrame:windowFrame display:YES]; // Se the frame of the window
 	[[_popoverWindow animationForKey:@"alphaValue"] setDelegate:self];
 	
@@ -104,8 +107,10 @@
 
 - (void)recalculateAndResetArrowDirection
 {
-	INPopoverArrowDirection direction = [self _arrowDirectionWithPreferredArrowDirection:self.arrowDirection];
+	CGFloat arrowPosition;
+	INPopoverArrowDirection direction = [self _arrowDirectionWithPreferredArrowDirection:self.arrowDirection arrowPosition:&arrowPosition];
 	[self _setArrowDirection:direction];
+	[self _setArrowPosition:arrowPosition];
 }
 
 - (IBAction)closePopover:(id)sender
@@ -136,28 +141,42 @@
 }
 
 // Calculate the frame of the window depending on the arrow direction
-- (NSRect)popoverFrameWithSize:(NSSize)contentSize andArrowDirection:(INPopoverArrowDirection)direction
+- (NSRect)popoverFrameWithSize:(NSSize)contentSize andArrowDirection:(INPopoverArrowDirection)direction andArrowPosition:(CGFloat)arrowPosition
 {
 	NSRect contentRect = NSZeroRect;
 	contentRect.size = contentSize;
 	NSRect windowFrame = [_popoverWindow frameRectForContentRect:contentRect];
-	if (direction == INPopoverArrowDirectionUp) { 
-		CGFloat xOrigin = NSMidX(_screenRect) - floor(windowFrame.size.width / 2.0);
-		CGFloat yOrigin = NSMinY(_screenRect) - windowFrame.size.height;
-		windowFrame.origin = NSMakePoint(xOrigin, yOrigin);
-	} else if (direction == INPopoverArrowDirectionDown) {
-		CGFloat xOrigin = NSMidX(_screenRect) - floor(windowFrame.size.width / 2.0);
-		windowFrame.origin = NSMakePoint(xOrigin, NSMaxY(_screenRect));
-	} else if (direction == INPopoverArrowDirectionLeft) {
-		CGFloat yOrigin = NSMidY(_screenRect) - floor(windowFrame.size.height / 2.0);
-		windowFrame.origin = NSMakePoint(NSMaxX(_screenRect), yOrigin);
-	} else if (direction == INPopoverArrowDirectionRight) {
-		CGFloat xOrigin = NSMinX(_screenRect) - windowFrame.size.width;
-		CGFloat yOrigin = NSMidY(_screenRect) - floor(windowFrame.size.height / 2.0);
-		windowFrame.origin = NSMakePoint(xOrigin, yOrigin);
-	} else {
-		// If no arrow direction is specified, just return an empty rect
-		windowFrame = NSZeroRect;
+	CGFloat arrowInset = INPOPOVER_ARROW_HEIGHT + INPOPOVER_CORNER_RADIUS + INPOPOVER_ARROW_WIDTH/2.0;	// inset from windowFrame
+	switch (direction) {
+		case INPopoverArrowDirectionUp:
+		{ 
+			CGFloat xOrigin = rint(NSMidX(_screenRect) - (windowFrame.size.width - arrowInset*2.0) * arrowPosition - arrowInset);
+			CGFloat yOrigin = NSMinY(_screenRect) - windowFrame.size.height;
+			windowFrame.origin = NSMakePoint(xOrigin, yOrigin);
+			break;
+		}
+		case INPopoverArrowDirectionDown:
+		{
+			CGFloat xOrigin = rint(NSMidX(_screenRect) - (windowFrame.size.width - arrowInset*2.0) * arrowPosition - arrowInset);
+			windowFrame.origin = NSMakePoint(xOrigin, NSMaxY(_screenRect));
+			break;
+		}
+		case INPopoverArrowDirectionLeft:
+		{
+			CGFloat yOrigin = rint(NSMidY(_screenRect) - (windowFrame.size.height - arrowInset*2.0) * arrowPosition - arrowInset);
+			windowFrame.origin = NSMakePoint(NSMaxX(_screenRect), yOrigin);
+			break;
+		}
+		case INPopoverArrowDirectionRight:
+		{
+			CGFloat xOrigin = NSMinX(_screenRect) - windowFrame.size.width;
+			CGFloat yOrigin = rint(NSMidY(_screenRect) - (windowFrame.size.height - arrowInset*2.0) * arrowPosition - arrowInset);
+			windowFrame.origin = NSMakePoint(xOrigin, yOrigin);
+			break;
+		}
+		default:
+			// If no arrow direction is specified, just return an empty rect
+			windowFrame = NSZeroRect;
 	}
 	return windowFrame;
 }
@@ -215,6 +234,8 @@
 
 - (INPopoverArrowDirection)arrowDirection { return _popoverWindow.frameView.arrowDirection; }
 
+- (CGFloat)arrowPosition { return _popoverWindow.frameView.arrowPosition; }
+
 - (NSView*)contentView { return [self.popoverWindow contentView]; }
 
 - (NSSize)contentSize { return _contentSize; }
@@ -252,7 +273,7 @@
 {
 	// We use -frameRectForContentRect: just to get the frame size because the origin it returns is not the one we want to use. Instead, -windowFrameWithSize:andArrowDirection: is used to  complete the frame
 	_contentSize = newContentSize;
-	NSRect adjustedRect = [self popoverFrameWithSize:newContentSize andArrowDirection:self.arrowDirection];
+	NSRect adjustedRect = [self popoverFrameWithSize:newContentSize andArrowDirection:self.arrowDirection andArrowPosition:self.arrowPosition];
 	[_popoverWindow setFrame:adjustedRect display:YES animate:self.animates];
 }
 	
@@ -268,6 +289,10 @@
 
 - (void)_setArrowDirection:(INPopoverArrowDirection)direction { 
 	_popoverWindow.frameView.arrowDirection = direction; 
+}
+
+- (void)_setArrowPosition:(CGFloat)position {
+	_popoverWindow.frameView.arrowPosition = position;
 }
 
 #pragma mark -
@@ -292,16 +317,79 @@
 	[_popoverWindow setAnimations:[NSDictionary dictionaryWithObject:animation forKey:@"alphaValue"]];
 }
 
-// Figure out which direction best stays in screen bounds
-- (INPopoverArrowDirection)_arrowDirectionWithPreferredArrowDirection:(INPopoverArrowDirection)direction
+- (NSScreen*)_positionViewScreen
 {
-	NSRect screenFrame = [[[_positionView window] screen] visibleFrame];
-	// If the window with the preferred arrow direction already falls within the screen bounds then no need to go any further
-	NSRect windowFrame = [self popoverFrameWithSize:self.contentSize andArrowDirection:direction];
-	if (NSContainsRect(screenFrame, windowFrame)) {
-		return direction;
+	// find screen that contains the center point of the position view
+	NSPoint positionPoint = NSMakePoint(NSMidX(_screenRect), NSMidY(_screenRect));
+	for (NSScreen *screen in [NSScreen screens]) {
+		if (NSPointInRect(positionPoint, [screen visibleFrame]))
+			return screen;
 	}
-	// First thing to try is making the popover go opposite of its current direction
+	return [[_positionView window] screen];
+}
+
+- (BOOL)_arrowDirection:(INPopoverArrowDirection)direction fitsScreenWithArrowPosition:(CGFloat *)outArrowPosition
+{
+	CGFloat arrowPosition = INPOPOVER_ARROW_DEFAULT_POSITION;
+	NSRect screenFrame = [[self _positionViewScreen] visibleFrame];
+	// If it already falls within the screen bounds with default arrow position then no need to go any further
+	NSSize contentSize = self.contentSize;
+	NSRect windowFrame = [self popoverFrameWithSize:contentSize andArrowDirection:direction andArrowPosition:arrowPosition];
+	if (NSContainsRect(screenFrame, windowFrame)) {
+		if (outArrowPosition)
+			*outArrowPosition = arrowPosition;
+		return YES;
+	}
+	// Calculate the remaining space on each side
+	CGFloat left = NSMinX(_screenRect) - NSMinX(screenFrame);
+	CGFloat right = NSMaxX(screenFrame) - NSMaxX(_screenRect);
+	CGFloat up = NSMaxY(screenFrame) - NSMaxY(_screenRect);
+	CGFloat down = NSMinY(_screenRect) - NSMinY(screenFrame);
+	CGFloat arrowInset = INPOPOVER_ARROW_HEIGHT + INPOPOVER_CORNER_RADIUS + INPOPOVER_ARROW_WIDTH/2.0;	// inset from windowFrame
+	// Try to reposition arrow
+	if (   (direction == INPopoverArrowDirectionUp && down >= windowFrame.size.height)
+		|| (direction == INPopoverArrowDirectionDown && up >= windowFrame.size.height))
+	{
+		CGFloat leftSpace = NSMidX(_screenRect) - NSMinX(screenFrame);
+		CGFloat rightSpace = NSMaxX(screenFrame) - NSMidX(_screenRect);
+		CGFloat minSpace = windowFrame.size.width/2.0;
+		
+		if (leftSpace < minSpace && leftSpace > arrowInset) {
+			arrowPosition -= (minSpace - leftSpace) / (windowFrame.size.width - arrowInset*2.0);
+		} else if (rightSpace < minSpace && rightSpace > arrowInset) {
+			arrowPosition += (minSpace - rightSpace) / (windowFrame.size.width - arrowInset*2.0);
+		}
+	}
+	else if (   (direction == INPopoverArrowDirectionLeft && right >= windowFrame.size.width)
+			 || (direction == INPopoverArrowDirectionRight && left >= windowFrame.size.width))
+	{
+		CGFloat upSpace = NSMaxY(screenFrame) - NSMidY(_screenRect);
+		CGFloat downSpace = NSMidY(_screenRect) - NSMinY(screenFrame);
+		CGFloat minSpace = windowFrame.size.height/2.0;
+		
+		if (upSpace < minSpace && upSpace > arrowInset) {
+			arrowPosition += (minSpace - upSpace) / (windowFrame.size.height - arrowInset*2.0);
+		} else if (downSpace < minSpace && downSpace > arrowInset) {
+			arrowPosition -= (minSpace - downSpace) / (windowFrame.size.height - arrowInset*2.0);
+		}
+	}
+	windowFrame = [self popoverFrameWithSize:contentSize andArrowDirection:direction andArrowPosition:arrowPosition];
+	if (NSContainsRect(screenFrame, windowFrame)) {
+		if (outArrowPosition)
+			*outArrowPosition = arrowPosition;
+		return YES;
+	}
+	return NO;
+}
+
+// Figure out which direction best stays in screen bounds
+- (INPopoverArrowDirection)_arrowDirectionWithPreferredArrowDirection:(INPopoverArrowDirection)direction arrowPosition:(CGFloat *)outArrowPosition
+{
+	// If the window with the preferred arrow direction already falls within the screen bounds then no need to go any further
+	if ([self _arrowDirection:direction fitsScreenWithArrowPosition:outArrowPosition])
+		return direction;
+	
+	// Next thing to try is making the popover go opposite of its current direction
 	INPopoverArrowDirection newDirection = INPopoverArrowDirectionUndefined;
 	switch (direction) {
 		case INPopoverArrowDirectionUp:
@@ -320,35 +408,35 @@
 			break;
 	}
 	// If the popover now fits within bounds, then return the newly adjusted direction
-	windowFrame = [self popoverFrameWithSize:self.contentSize andArrowDirection:newDirection];
-	if (NSContainsRect(screenFrame, windowFrame)) {
+	if ([self _arrowDirection:newDirection fitsScreenWithArrowPosition:outArrowPosition])
 		return newDirection;
-	}
-	// Calculate the remaining space on each side and figure out which would be the best to try next
-	CGFloat left = NSMinX(_screenRect);
-	CGFloat right = screenFrame.size.width - NSMaxX(_screenRect);
-	CGFloat up = screenFrame.size.height - NSMaxY(_screenRect);
-	CGFloat down = NSMinY(_screenRect);
-	BOOL arrowLeft = (right > left);
-	BOOL arrowUp = (down > up);
+	
 	// Now the next thing to try is the direction with the most space
+	NSRect screenFrame = [[self _positionViewScreen] visibleFrame];
 	switch (direction) {
 		case INPopoverArrowDirectionUp:
 		case INPopoverArrowDirectionDown:
-			newDirection = arrowLeft ? INPopoverArrowDirectionLeft : INPopoverArrowDirectionRight;
+		{
+			CGFloat left = NSMinX(_screenRect);
+			CGFloat right = screenFrame.size.width - NSMaxX(_screenRect);
+			newDirection = (right > left) ? INPopoverArrowDirectionLeft : INPopoverArrowDirectionRight;
 			break;
+		}
 		case INPopoverArrowDirectionLeft:
 		case INPopoverArrowDirectionRight:
-			newDirection = arrowUp ? INPopoverArrowDirectionUp : INPopoverArrowDirectionDown;
+		{
+			CGFloat up = screenFrame.size.height - NSMaxY(_screenRect);
+			CGFloat down = NSMinY(_screenRect);
+			newDirection = (down > up) ? INPopoverArrowDirectionUp : INPopoverArrowDirectionDown;
 			break;
+		}
 		default:
 			break;
 	}
 	// If the popover now fits within bounds, then return the newly adjusted direction
-	windowFrame = [self popoverFrameWithSize:self.contentSize andArrowDirection:newDirection];
-	if (NSContainsRect(screenFrame, windowFrame)) {
+	if ([self _arrowDirection:newDirection fitsScreenWithArrowPosition:outArrowPosition])
 		return newDirection;
-	}
+	
 	// If that didn't fit, then that means that it will be out of bounds on every side so just return the original direction
 	return direction;
 }
@@ -363,7 +451,7 @@
 	NSRect newFrame = [_popoverWindow frame];
 	_screenRect = [self.positionView convertRect:_viewRect toView:nil]; // Convert the rect to window coordinates
 	_screenRect.origin = [[self.positionView window] convertBaseToScreen:_screenRect.origin]; // Convert window coordinates to screen coordinates
-	NSRect calculatedFrame = [self popoverFrameWithSize:self.contentSize andArrowDirection:self.arrowDirection]; // Calculate the window frame based on the arrow direction
+	NSRect calculatedFrame = [self popoverFrameWithSize:self.contentSize andArrowDirection:self.arrowDirection andArrowPosition:self.arrowPosition]; // Calculate the window frame based on the arrow direction
 	newFrame.origin = calculatedFrame.origin;
 	[_popoverWindow setFrame:newFrame display:YES animate:NO]; // Set the frame of the window
 }
@@ -378,6 +466,7 @@
 	[positionWindow makeKeyAndOrderFront:nil];
 	// Clear all the ivars
 	[self _setArrowDirection:INPopoverArrowDirectionUndefined];
+	[self _setArrowPosition:INPOPOVER_ARROW_DEFAULT_POSITION];
 	[self _setPositionView:nil];
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
 	[[_popoverWindow animationForKey:@"alphaValue"] setDelegate:nil];	// reset delegate so it doesn't retain us
