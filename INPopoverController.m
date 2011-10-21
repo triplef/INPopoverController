@@ -295,7 +295,7 @@
 // Figure out which direction best stays in screen bounds
 - (INPopoverArrowDirection)_arrowDirectionWithPreferredArrowDirection:(INPopoverArrowDirection)direction
 {
-	NSRect screenFrame = [[[_positionView window] screen] frame];
+	NSRect screenFrame = [[[_positionView window] screen] visibleFrame];
 	// If the window with the preferred arrow direction already falls within the screen bounds then no need to go any further
 	NSRect windowFrame = [self popoverFrameWithSize:self.contentSize andArrowDirection:direction];
 	if (NSContainsRect(screenFrame, windowFrame)) {
@@ -336,6 +336,7 @@
 		case INPopoverArrowDirectionUp:
 		case INPopoverArrowDirectionDown:
 			newDirection = arrowLeft ? INPopoverArrowDirectionLeft : INPopoverArrowDirectionRight;
+			break;
 		case INPopoverArrowDirectionLeft:
 		case INPopoverArrowDirectionRight:
 			newDirection = arrowUp ? INPopoverArrowDirectionUp : INPopoverArrowDirectionDown;
