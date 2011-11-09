@@ -37,6 +37,9 @@
 
 - (void)drawRect:(NSRect)dirtyRect
 {
+	[[NSColor clearColor] set];
+	NSRectFill(dirtyRect);
+	
 	NSBezierPath *path = [self _popoverBezierPathWithRect:[self bounds]];
 	[self.color set];
 	[path fill];
